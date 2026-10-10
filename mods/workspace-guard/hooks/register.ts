@@ -1,11 +1,14 @@
 import type { Register } from 'claude-code'
 
-const D8_PATH = /\/Projects\/D8(\/|$)/
-const PERSONAL = /EggmanPDX|github-personal/
+// Personal tooling: this mod does nothing in D8 projects (work), by design.
+const D8_PATH = /\/Projects\/D8(\/|$)/i
 const D8_REMOTE = /gregg-eiler_d8taops|github-work/
 
-/** Returns a refusal reason, or undefined when the command is fine. */
+export const isD8 = (cwd: string): boolean => D8_PATH.test(cwd)
+
+/** Returns a refusal reason, or undefined when the command is fine. Never judges in D8. */
 export const judge = (command: string, cwd: string): string | undefined => {
+  if (isD8(cwd)) return undefined
   const parts = command.split(/&&|\|\||;|\n/).map(s => s.trim())
 
   for (const p of parts) {
@@ -17,13 +20,9 @@ export const judge = (command: string, cwd: string): string | undefined => {
         return 'Never force-push to main/master.'
       if (p.replace(/^git\s+push/, '').trim() === '')
         return 'Bare `git push` is banned. Use `git pull --rebase && git push -u origin <branch>`.'
-      if (D8_PATH.test(cwd) && PERSONAL.test(p))
-        return 'Account isolation: D8 work never goes to EggmanPDX.'
-      if (!D8_PATH.test(cwd) && D8_REMOTE.test(p))
-        return 'Account isolation: non-D8 work never goes to the D8 org.'
+      if (D8_REMOTE.test(p))
+        return 'Account isolation: personal work never goes to the D8 org.'
     }
-    if (D8_PATH.test(cwd) && /^(npx\s+)?vercel\b/.test(p) && /--prod\b/.test(p) && !/--prebuilt\b|\bbuild\b|\bpull\b/.test(p))
-      return 'D8 Vercel remote builds fail silently. Use: vercel pull --yes --environment production && vercel build --prod && vercel deploy --prebuilt --prod.'
   }
   return undefined
 }

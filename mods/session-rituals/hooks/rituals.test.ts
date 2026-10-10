@@ -1,10 +1,9 @@
 import { test, expect } from 'claude-code/testing'
-import { handoffPaths, isShippable, remoteVerdict, workspaceFor, splitHandoff, decisionsDirective } from './register'
+import { handoffPaths, isShippable, remoteVerdict, workspaceFor, splitHandoff, decisionsDirective, isD8 } from './register'
 
 const reply = (json: string) => `# Handoff body\n\nNext: x\n\n\`\`\`json\n${json}\n\`\`\``
 
 test('workspace comes from the project path', () => {
-  expect(workspaceFor('/Users/g/Projects/D8/app')).toBe('D8TAOPS')
   expect(workspaceFor('/Users/g/Projects/BGC/site')).toBe('BGC')
   expect(workspaceFor('/Users/g/Projects/Egg/odin')).toBe('Personal')
   expect(workspaceFor('/home/user/claude-config')).toBeUndefined()
@@ -44,15 +43,19 @@ test('directive gates on "log decisions", dedupes, and never invents a workspace
   expect(decisionsDirective(d, undefined, '2026-10-10')).toMatch(/leave unset/)
 })
 
-test('ship remote matches workspace', () => {
-  const d8 = '/Users/g/Projects/D8/app'
-  const egg = '/Users/g/Projects/Egg/app'
-  expect(remoteVerdict(d8, 'https://github.com/gregg-eiler_d8taops/x.git')).toBeUndefined()
-  expect(remoteVerdict(d8, 'git@github-personal:EggmanPDX/x.git')).toMatch(/D8 workspace/)
-  expect(remoteVerdict(egg, 'git@github-personal:EggmanPDX/x.git')).toBeUndefined()
-  expect(remoteVerdict(egg, 'git@github-work:gregg-eiler_d8taops/x.git')).toMatch(/D8 org/)
-  expect(remoteVerdict(egg, 'https://gitlab.com/x/y.git')).toMatch(/not EggmanPDX/)
-  expect(remoteVerdict(d8, '')).toMatch(/\(none\)/)
+test('ship only pushes to the personal account', () => {
+  expect(remoteVerdict('git@github-personal:EggmanPDX/x.git')).toBeUndefined()
+  expect(remoteVerdict('https://github.com/EggmanPDX/x.git')).toBeUndefined()
+  expect(remoteVerdict('git@github-work:gregg-eiler_d8taops/x.git')).toMatch(/D8 org/)
+  expect(remoteVerdict('https://gitlab.com/x/y.git')).toMatch(/not EggmanPDX/)
+  expect(remoteVerdict('')).toMatch(/\(none\)/)
+})
+
+test('the mod is off in D8 projects', () => {
+  expect(isD8('/Users/g/Projects/D8/app')).toBe(true)
+  expect(isD8('/Users/g/projects/d8')).toBe(true)
+  expect(isD8('/Users/g/Projects/Egg/app')).toBe(false)
+  expect(isD8('/Users/g/Projects/D8_Tools_Personal')).toBe(false)
 })
 
 test('handoff paths: project first, fallback second', () => {
