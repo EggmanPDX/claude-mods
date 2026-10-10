@@ -4,6 +4,9 @@ import type { Register } from 'claude-code'
 // capture now lands in Build Tracker's What I Learned / Reusable Steps.
 const BUILD_TRACKER = 'collection://0f387ca1-18a0-4cee-8c01-19e37ee75719'
 
+// Personal tooling: this mod does nothing in D8 projects (work), by design.
+export const isD8 = (cwd: string): boolean => /\/Projects\/D8(\/|$)/i.test(cwd)
+
 export type NotionPayload = {
   learned: string
   reusableSteps: string
@@ -69,6 +72,7 @@ Payload: ${JSON.stringify(p)}`
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
+    if (isD8(e.cwd)) return next(e)
     await $.command.register({
       name: 'reflect',
       description: 'Review the session: outsourced thinking, gaps, skill candidates',
@@ -78,6 +82,7 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'reflect' }, async ($, e) => {
+    if (isD8(await $.session.cwd())) return { text: 'reflect is off in D8 projects (personal tooling only).' }
     const r = await $.model.fork({ prompt: buildPrompt(e.args.trim()) })
     if (!r.isAnswered)
       return { text: r.reason === 'nothing-to-fork' ? 'Nothing to reflect on yet.' : `Reflect failed: ${r.reason}.` }

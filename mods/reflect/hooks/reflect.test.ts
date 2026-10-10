@@ -1,5 +1,10 @@
 import { test, expect } from 'claude-code/testing'
-import { reflectPath, reflectionEntry, buildPrompt, splitReflection, hasNotionContent, notionDirective } from './register'
+import { reflectPath, reflectionEntry, buildPrompt, splitReflection, hasNotionContent, notionDirective, isD8 } from './register'
+
+test('reflect is off in D8 projects', () => {
+  expect(isD8('/Users/g/Projects/D8/app')).toBe(true)
+  expect(isD8('/Users/g/Projects/Egg/odin')).toBe(false)
+})
 
 const reply = (json: string) => `Section text.\n\nQ1 ...\n\n\`\`\`json\n${json}\n\`\`\``
 

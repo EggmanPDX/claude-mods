@@ -11,19 +11,19 @@ export const handoffPaths = (cwd: string, home: string): string[] => [
 export const isShippable = (branch: string): boolean =>
   branch !== '' && branch !== 'HEAD'
 
-const D8_PATH = /\/Projects\/D8(\/|$)/
+// Personal tooling: this mod does nothing in D8 projects (work), by design.
+const D8_PATH = /\/Projects\/D8(\/|$)/i
 const D8_REMOTE = /gregg-eiler_d8taops|github-work/
 const PERSONAL_REMOTE = /EggmanPDX|github-personal/
 
-/** Refusal reason when the push remote belongs to the other account, else undefined. */
-export const remoteVerdict = (cwd: string, url: string): string | undefined => {
-  const isD8 = D8_PATH.test(cwd)
-  if (isD8 && !D8_REMOTE.test(url))
-    return `D8 workspace, but the remote is ${url || '(none)'}. D8 pushes go to gregg-eiler_d8taops only.`
-  if (!isD8 && D8_REMOTE.test(url))
-    return `Non-D8 workspace, but the remote is ${url}. Never push BGC/Egg work to the D8 org.`
-  if (!isD8 && !PERSONAL_REMOTE.test(url))
-    return `Remote ${url || '(none)'} is not EggmanPDX. Refusing to guess the account.`
+export const isD8 = (cwd: string): boolean => D8_PATH.test(cwd)
+
+const OFF_IN_D8 = 'session-rituals is off in D8 projects (personal tooling only).'
+
+/** Refusal reason when the push remote is not the personal account, else undefined. */
+export const remoteVerdict = (url: string): string | undefined => {
+  if (D8_REMOTE.test(url)) return `The remote is ${url}. Never push personal work to the D8 org.`
+  if (!PERSONAL_REMOTE.test(url)) return `Remote ${url || '(none)'} is not EggmanPDX. Refusing to guess the account.`
   return undefined
 }
 
@@ -39,7 +39,6 @@ export type Decision = { decision: string; category: string; context: string; de
 
 /** The Notion "Workspace" option for a project path, or undefined when the path says nothing. */
 export const workspaceFor = (cwd: string): string | undefined => {
-  if (/\/Projects\/D8(\/|$)/.test(cwd)) return 'D8TAOPS'
   if (/\/Projects\/BGC(\/|$)/.test(cwd)) return 'BGC'
   if (/\/Projects\/Egg(\/|$)/.test(cwd)) return 'Personal'
   return undefined
@@ -78,6 +77,7 @@ Decisions: ${JSON.stringify(decisions)}`
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
+    if (isD8(e.cwd)) return next(e)
     await $.command.register({ name: 'park', description: 'Save a handoff to memory/last_handoff.md', argumentHint: '[note]' })
     await $.command.register({ name: 'resume', description: 'Read the last handoff and report state' })
     await $.command.register({ name: 'ship', description: 'git pull --rebase && git push -u origin <branch>' })
@@ -85,6 +85,7 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'park' }, async ($, e) => {
+    if (isD8(await $.session.cwd())) return { text: OFF_IN_D8 }
     const r = await $.model.fork({ prompt: e.args ? `${PARK_PROMPT}\nExtra note from the user: ${e.args}` : PARK_PROMPT })
     if (!r.isAnswered)
       return { text: r.reason === 'nothing-to-fork' ? 'Nothing to park yet.' : `Park failed: ${r.reason}.` }
@@ -110,6 +111,7 @@ export const register: Register = on => {
 
   on('command.run', { command: 'resume' }, async $ => {
     const cwd = await $.session.cwd()
+    if (isD8(cwd)) return { text: OFF_IN_D8 }
     const home = (await $.process.run(['printenv', 'HOME'])).stdout.trim()
     for (const path of handoffPaths(cwd, home)) {
       if (await $.fs.exists(path)) {
@@ -124,11 +126,12 @@ export const register: Register = on => {
   }).catch(() => ({ text: 'Resume failed while reading the handoff.' }))
 
   on('command.run', { command: 'ship' }, async $ => {
+    if (isD8(await $.session.cwd())) return { text: OFF_IN_D8 }
     const branch = (await $.process.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim()
     if (!isShippable(branch)) return { text: 'Not on a branch (detached HEAD). Not shipping.' }
 
     const url = (await $.process.run(['git', 'remote', 'get-url', '--push', 'origin'])).stdout.trim()
-    const refusal = remoteVerdict(await $.session.cwd(), url)
+    const refusal = remoteVerdict(url)
     if (refusal) return { text: `Not shipping. ${refusal}` }
 
     const pull = await $.process.run(['git', 'pull', '--rebase', 'origin', branch])
