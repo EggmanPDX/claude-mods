@@ -1,0 +1,8 @@
+{
+  "name": "workspace-guard",
+  "version": "0.1.0",
+  "description": "Enforces Egg's CLAUDE.md hard rules on Bash: account isolation, push protocol, Vercel D8 prebuilt, no --no-verify.",
+  "author": {
+    "name": "Gregg Eiler"
+  }
+}

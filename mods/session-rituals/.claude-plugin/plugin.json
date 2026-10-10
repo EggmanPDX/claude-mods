@@ -1,0 +1,8 @@
+{
+  "name": "session-rituals",
+  "version": "0.1.0",
+  "description": "/park, /resume and /ship as real slash commands.",
+  "author": {
+    "name": "Gregg Eiler"
+  }
+}

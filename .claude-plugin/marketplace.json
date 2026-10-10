@@ -1,0 +1,24 @@
+{
+  "name": "egg-mods",
+  "owner": {
+    "name": "Gregg Eiler"
+  },
+  "plugins": [
+    {
+      "name": "workspace-guard",
+      "source": "./mods/workspace-guard",
+      "description": "Refuses Bash commands that break the CLAUDE.md hard rules."
+    },
+    {
+      "name": "session-rituals",
+      "source": "./mods/session-rituals",
+      "description": "/park, /resume and /ship slash commands."
+    },
+    {
+      "name": "reflect",
+      "source": "./mods/reflect",
+      "description": "/reflect: session review against the accountability rules."
+    }
+  ],
+  "description": "Egg's Claude Code mods."
+}
